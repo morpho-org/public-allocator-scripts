@@ -45,7 +45,7 @@ const SAFE_ADDRESS = "0xAA";
 #### 2. Run the script:
 
 ```sh
-ts-node apiSafePublicAllocator.ts
+ts-node scripts/apiSafePublicAllocator.ts
 ```
 
 ### API - Bundler Multicall
@@ -65,7 +65,7 @@ const marketId =
 #### 2. Run the script:
 
 ```sh
-ts-node apiBundler.ts
+ts-node scripts/apiBundler.ts
 ```
 
 ### License:
