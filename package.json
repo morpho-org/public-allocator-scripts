@@ -5,6 +5,7 @@
   "license": "MIT",
   "dependencies": {
     "@morpho-labs/gnosis-tx-builder": "^2.0.0",
+    "@morpho-org/morpho-blue-bundlers": "^1.1.2",
     "@types/node": "^20.14.5",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.1",

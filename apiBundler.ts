@@ -1,15 +1,14 @@
 /* The following code is using:
 1. The blue-api to fetch data from the Morpho API.
-2. The PublicAllocator contract to reallocate liquidity.
-3. The TxBuilder to cretae the json to batch.
+2. The Bundler contract to reallocate liquidity.
 */
-import { ethers, AbiCoder, keccak256 } from "ethers";
+
+import { AbiCoder, keccak256 } from "ethers";
 import "dotenv/config";
 import fs from "fs";
-import { TxBuilder } from "@morpho-labs/gnosis-tx-builder";
-import { PublicAllocator__factory } from "ethers-types";
+import { BaseBundlerV2__factory } from "@morpho-org/morpho-blue-bundlers/types";
+import { BundlerAction } from "@morpho-org/morpho-blue-bundlers/pkg";
 
-// Define the structure of MarketParams and Withdrawal
 /**
  * @notice Structure representing market parameters.
  * @param loanToken Address of the loan token.
@@ -154,7 +153,7 @@ export const queryMarketData = async (
  * @return An object containing withdrawals grouped by vault and supply market parameters.
  */
 const extractDataForReallocation = (marketData: any) => {
-  const withdrawalsByVault: { [vaultAddress: string]: Withdrawal[] } = {};
+  const withdrawalsPerVault: { [vaultAddress: string]: Withdrawal[] } = {};
 
   marketData.publicAllocatorSharedLiquidity.forEach((item: any) => {
     const withdrawal: Withdrawal = {
@@ -168,11 +167,11 @@ const extractDataForReallocation = (marketData: any) => {
       amount: BigInt(item.assets),
     };
 
-    if (!withdrawalsByVault[item.vault.address]) {
-      withdrawalsByVault[item.vault.address] = [];
+    if (!withdrawalsPerVault[item.vault.address]) {
+      withdrawalsPerVault[item.vault.address] = [];
     }
 
-    withdrawalsByVault[item.vault.address].push(withdrawal);
+    withdrawalsPerVault[item.vault.address].push(withdrawal);
   });
 
   const supplyMarketParams: MarketParams = {
@@ -183,7 +182,7 @@ const extractDataForReallocation = (marketData: any) => {
     lltv: marketData.lltv,
   };
 
-  return { withdrawalsByVault, supplyMarketParams };
+  return { withdrawalsPerVault, supplyMarketParams };
 };
 
 /**
@@ -224,55 +223,61 @@ const reallocateTo = async (marketId: string, chainId: number) => {
   const marketData = await queryMarketData(marketId, chainId);
   if (!marketData) throw new Error("Market data not found.");
 
-  const { withdrawalsByVault, supplyMarketParams } =
+  const { withdrawalsPerVault, supplyMarketParams } =
     extractDataForReallocation(marketData);
 
   console.log(
     `
     Withdrawals by Vault: `,
-    withdrawalsByVault
+    withdrawalsPerVault
   );
-  console.log(
-    `
-    Withdrawals by Vault: `,
-    withdrawalsByVault[Object.keys(withdrawalsByVault)[0]]
-  );
+
   console.log("Supply Market Parameters: ", supplyMarketParams);
-  const iface = new ethers.Interface(PublicAllocator__factory.abi);
 
-  const transactions = Object.keys(withdrawalsByVault).map((vaultAddress) => ({
-    to: publicAllocatorAddress,
-    value: "0", // Fee being equal to zero as of today
-    data: iface.encodeFunctionData("reallocateTo", [
-      vaultAddress,
-      withdrawalsByVault[vaultAddress].sort((a, b) =>
-        getMarketId(a.marketParams).localeCompare(getMarketId(b.marketParams))
-      ),
-      supplyMarketParams,
-    ]),
-  }));
+  const multicallInterface = BaseBundlerV2__factory.createInterface();
 
-  const batchJson = TxBuilder.batch(SAFE_ADDRESS, transactions);
+  //@ts-ignore
+  const payload = multicallInterface.encodeFunctionData("multicall", [
+    Object.keys(withdrawalsPerVault).map((vaultAddress) => {
+      return BundlerAction.metaMorphoReallocateTo(
+        publicAllocatorAddress,
+        vaultAddress,
+        0n, // Fee is zero as of today
+        withdrawalsPerVault[vaultAddress].sort((a, b) =>
+          getMarketId(a.marketParams).localeCompare(getMarketId(b.marketParams))
+        ),
+        supplyMarketParams
+      );
+    }),
+  ]);
+
+  console.log(payload);
+
+  const rawTransaction = {
+    to: BASE_BUNDLER_V2_ADDRESS,
+    data: payload,
+    value: "0",
+  };
 
   await fs.promises.writeFile(
-    "safeBatch.json",
-    JSON.stringify(batchJson, null, 2)
+    "rawTransaction.json",
+    JSON.stringify(rawTransaction, null, 2)
   );
 
-  console.log(
-    "Transaction batch JSON has been created and saved as 'safeBatch.json'."
-  );
+  console.log(`
+    Raw transaction JSON has been created and saved as 'rawTransaction.json'.
+  `);
 };
 
-/* Parameters to focus on */
-const SAFE_ADDRESS = "0xD81E0983e8e133d34670728406d08637374e545D";
-
 /* START HERE */
-/* 
-1. ChainId of the network you expect to move liquidity into
-2. Id of the market you expect borrowing from.
-Thus we want to bring liquidity in here.
+/*
+
+Careful, the following addresses are hardcoded and should be manually retrieved and verified before running the script.
+1. chainId of the network you expect to move liquidity into
+2. marketId of the market you expect the borrowers to borrow from, executing the safeTx will bring available liquidity in this market.
 */
+
+const BASE_BUNDLER_V2_ADDRESS = "0x4095F064B8d3c3548A3bebfd0Bbfd04750E30077";
 const API_URL = "https://blue-api.morpho.org/graphql";
 const chainId = 1;
 const marketId =

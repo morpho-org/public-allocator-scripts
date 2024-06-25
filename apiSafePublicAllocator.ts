@@ -158,7 +158,7 @@ export const queryMarketData = async (
  * @return An object containing withdrawals grouped by vault and supply market parameters.
  */
 const extractDataForReallocation = (marketData: any) => {
-  const withdrawalsByVault: { [vaultAddress: string]: Withdrawal[] } = {};
+  const withdrawalsPerVault: { [vaultAddress: string]: Withdrawal[] } = {};
 
   marketData.publicAllocatorSharedLiquidity.forEach((item: any) => {
     const withdrawal: Withdrawal = {
@@ -172,11 +172,11 @@ const extractDataForReallocation = (marketData: any) => {
       amount: BigInt(item.assets),
     };
 
-    if (!withdrawalsByVault[item.vault.address]) {
-      withdrawalsByVault[item.vault.address] = [];
+    if (!withdrawalsPerVault[item.vault.address]) {
+      withdrawalsPerVault[item.vault.address] = [];
     }
 
-    withdrawalsByVault[item.vault.address].push(withdrawal);
+    withdrawalsPerVault[item.vault.address].push(withdrawal);
   });
 
   const supplyMarketParams: MarketParams = {
@@ -187,7 +187,7 @@ const extractDataForReallocation = (marketData: any) => {
     lltv: marketData.lltv,
   };
 
-  return { withdrawalsByVault, supplyMarketParams };
+  return { withdrawalsPerVault, supplyMarketParams };
 };
 
 /**
@@ -228,16 +228,16 @@ const reallocateTo = async (marketId: string, chainId: number) => {
   const marketData = await queryMarketData(marketId, chainId);
   if (!marketData) throw new Error("Market data not found.");
 
-  const { withdrawalsByVault, supplyMarketParams } =
+  const { withdrawalsPerVault, supplyMarketParams } =
     extractDataForReallocation(marketData);
 
   console.log(
     `
     Withdrawals by Vault: `,
-    withdrawalsByVault
+    withdrawalsPerVault
   );
   // Display all market params from the vault
-  Object.entries(withdrawalsByVault).forEach(([vaultAddress, withdrawals]) => {
+  Object.entries(withdrawalsPerVault).forEach(([vaultAddress, withdrawals]) => {
     console.log(`
     Vault Address: ${vaultAddress}`);
     withdrawals.forEach((withdrawal, index) => {
@@ -260,15 +260,13 @@ const reallocateTo = async (marketId: string, chainId: number) => {
   );
   const iface = new ethers.Interface(PublicAllocator__factory.abi);
 
-  const transactions = Object.keys(withdrawalsByVault).map((vaultAddress) => ({
+  const transactions = Object.keys(withdrawalsPerVault).map((vaultAddress) => ({
     to: publicAllocatorAddress,
     value: "0", // Fee being equal to zero as of today
     data: iface.encodeFunctionData("reallocateTo", [
       vaultAddress,
-      withdrawalsByVault[vaultAddress].sort(
-        (a, b) =>
-          parseInt(getMarketId(a.marketParams)) -
-          parseInt(getMarketId(b.marketParams))
+      withdrawalsPerVault[vaultAddress].sort((a, b) =>
+        getMarketId(a.marketParams).localeCompare(getMarketId(b.marketParams))
       ),
       supplyMarketParams,
     ]),
