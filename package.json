@@ -1,0 +1,14 @@
+{
+  "name": "encoder",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@morpho-labs/gnosis-tx-builder": "^2.0.0",
+    "@types/node": "^20.14.5",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.1",
+    "ethers-multicall-provider": "^6.3.1",
+    "ethers-types": "^3.16.0"
+  }
+}
