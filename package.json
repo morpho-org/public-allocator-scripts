@@ -10,6 +10,7 @@
     "dotenv": "^16.4.5",
     "ethers": "^6.13.1",
     "ethers-multicall-provider": "^6.3.1",
-    "ethers-types": "^3.16.0"
+    "ethers-types": "^3.16.0",
+    "evm-maths": "^7.0.0"
   }
 }

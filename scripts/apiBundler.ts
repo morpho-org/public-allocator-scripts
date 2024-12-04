@@ -103,6 +103,10 @@ const queries = {
   `,
 };
 
+const BUFFER_FACTOR_NUMERATOR = 1001n;
+const BUFFER_FACTOR_DENOMINATOR = 1000n;
+const API_URL = "https://blue-api.morpho.org/graphql";
+
 /**
  * @notice Helper function to fetch data from the Morpho API.
  * @param query The GraphQL query string.
@@ -150,39 +154,104 @@ export const queryMarketData = async (
 /**
  * @notice Extract data from market data for withdrawals and supply market parameters.
  * @param marketData The market data object.
- * @return An object containing withdrawals grouped by vault and supply market parameters.
+ * @param liquidity The liquidity to reallocate as a bigint.
+ * @return An object containing withdrawals grouped by vault, supply market parameters, and a summary.
  */
-const extractDataForReallocation = (marketData: any) => {
+const extractDataForReallocation = (marketData: any, liquidity: bigint) => {
   const withdrawalsPerVault: { [vaultAddress: string]: Withdrawal[] } = {};
+  const availableLiquidity = BigInt(marketData.state.liquidityAssets);
 
-  marketData.publicAllocatorSharedLiquidity.forEach((item: any) => {
-    const withdrawal: Withdrawal = {
-      marketParams: {
-        loanToken: item.allocationMarket.loanAsset.address,
-        collateralToken: item.allocationMarket.collateralAsset.address,
-        oracle: item.allocationMarket.oracle.address,
-        irm: item.allocationMarket.irmAddress,
-        lltv: item.allocationMarket.lltv,
-      },
-      amount: BigInt(item.assets),
-    };
+  let liquidityNeededFromReallocation = 0n;
 
-    if (!withdrawalsPerVault[item.vault.address]) {
-      withdrawalsPerVault[item.vault.address] = [];
+  // Determine if we need to reallocate liquidity
+  if (liquidity > availableLiquidity) {
+    liquidityNeededFromReallocation =
+      ((liquidity - availableLiquidity) * BUFFER_FACTOR_NUMERATOR) /
+      BUFFER_FACTOR_DENOMINATOR;
+  }
+
+  let totalReallocated = 0n;
+
+  // First, group and sum assets by vault
+  const vaultTotalAssets = marketData.publicAllocatorSharedLiquidity.reduce(
+    (acc: { [key: string]: bigint }, item: any) => {
+      const vaultAddress = item.vault.address;
+      acc[vaultAddress] = (acc[vaultAddress] || 0n) + BigInt(item.assets);
+      return acc;
+    },
+    {}
+  );
+
+  // Sort vaults by total assets (descending)
+  const sortedVaults = Object.entries(vaultTotalAssets).sort(
+    ([, a], [, b]) => Number(b) - Number(a)
+  );
+
+  // Process each vault's allocations
+  let remainingLiquidityNeeded = liquidityNeededFromReallocation;
+
+  for (const [vaultAddress] of sortedVaults) {
+    if (remainingLiquidityNeeded <= 0n) break;
+
+    const vaultAllocations = marketData.publicAllocatorSharedLiquidity.filter(
+      (item: any) => item.vault.address === vaultAddress
+    );
+
+    for (const item of vaultAllocations) {
+      const itemAmount = BigInt(item.assets);
+
+      if (remainingLiquidityNeeded <= 0n) break;
+
+      // Calculate how much we can take from this allocation
+      const amountToTake =
+        itemAmount < remainingLiquidityNeeded
+          ? itemAmount
+          : remainingLiquidityNeeded;
+
+      remainingLiquidityNeeded -= amountToTake;
+      totalReallocated += amountToTake;
+
+      const withdrawal: Withdrawal = {
+        marketParams: {
+          loanToken: item.allocationMarket.loanAsset.address,
+          collateralToken: item.allocationMarket.collateralAsset.address,
+          oracle: item.allocationMarket.oracle.address,
+          irm: item.allocationMarket.irmAddress,
+          lltv: BigInt(item.allocationMarket.lltv),
+        },
+        amount: amountToTake,
+      };
+
+      if (!withdrawalsPerVault[vaultAddress]) {
+        withdrawalsPerVault[vaultAddress] = [];
+      }
+
+      withdrawalsPerVault[vaultAddress].push(withdrawal);
     }
-
-    withdrawalsPerVault[item.vault.address].push(withdrawal);
-  });
+  }
 
   const supplyMarketParams: MarketParams = {
     loanToken: marketData.loanAsset.address,
     collateralToken: marketData.collateralAsset.address,
     oracle: marketData.oracle.address,
     irm: marketData.irmAddress,
-    lltv: marketData.lltv,
+    lltv: BigInt(marketData.lltv),
   };
 
-  return { withdrawalsPerVault, supplyMarketParams };
+  const totalLiquidityProvided = availableLiquidity + totalReallocated;
+
+  const summary = {
+    requestedLiquidity: liquidity,
+    totalLiquidityProvided,
+    totalReallocated,
+    liquidityShortfall:
+      totalLiquidityProvided >= liquidity
+        ? 0n
+        : liquidity - totalLiquidityProvided,
+    isLiquidityFullyMatched: totalLiquidityProvided >= liquidity,
+  };
+
+  return { withdrawalsPerVault, supplyMarketParams, summary };
 };
 
 /**
@@ -208,8 +277,13 @@ export const getMarketId = (market: MarketParams) => {
  * @notice Main function to execute the reallocation process and create transaction JSON.
  * @param marketId The ID of the market to reallocate to.
  * @param chainId The ID of the blockchain network.
+ * @param liquidity The liquidity to reallocate as a bigint.
  */
-const reallocateTo = async (marketId: string, chainId: number) => {
+const reallocateTo = async (
+  marketId: string,
+  chainId: number,
+  liquidity: bigint
+) => {
   console.log(`
     Starting reallocation process...`);
 
@@ -223,8 +297,8 @@ const reallocateTo = async (marketId: string, chainId: number) => {
   const marketData = await queryMarketData(marketId, chainId);
   if (!marketData) throw new Error("Market data not found.");
 
-  const { withdrawalsPerVault, supplyMarketParams } =
-    extractDataForReallocation(marketData);
+  const { withdrawalsPerVault, supplyMarketParams, summary } =
+    extractDataForReallocation(marketData, liquidity);
 
   console.log(
     `
@@ -233,6 +307,35 @@ const reallocateTo = async (marketId: string, chainId: number) => {
   );
 
   console.log("Supply Market Parameters: ", supplyMarketParams);
+
+  console.log(`
+    Summary:
+    - This script will reallocate liquidity from multiple markets to a single market
+    - Using the Morpho Blue API to fetch market data
+    - Using the Bundler contract to execute the reallocation
+  `);
+
+  // Reallocation Summary
+  console.log(`
+    Reallocation Summary:
+    - Requested Liquidity: ${summary.requestedLiquidity.toString()}
+    - Available Liquidity in Target Market: ${marketData.state.liquidityAssets}
+    - Total Reallocated from Source Markets: ${summary.totalReallocated.toString()}
+    - Total Liquidity Provided: ${summary.totalLiquidityProvided.toString()}
+  `);
+
+  if (summary.isLiquidityFullyMatched) {
+    console.log(
+      `All requested liquidity has been successfully reallocated. \n`
+    );
+  } else {
+    console.log(
+      `Note: The requested liquidity could not be fully reallocated due to insufficient available liquidity in source markets.`
+    );
+    console.log(
+      `Liquidity Shortfall: ${summary.liquidityShortfall.toString()}\n`
+    );
+  }
 
   const multicallInterface = BaseBundlerV2__factory.createInterface();
 
@@ -278,10 +381,10 @@ Careful, the following addresses are hardcoded and should be manually retrieved 
 */
 
 const BASE_BUNDLER_V2_ADDRESS = "0x4095F064B8d3c3548A3bebfd0Bbfd04750E30077";
-const API_URL = "https://blue-api.morpho.org/graphql";
 const chainId = 1;
 const marketId =
   "0xb8fc70e82bc5bb53e773626fcc6a23f7eefa036918d7ef216ecfb1950a94a85e";
+const liquidity = BigInt("1289482554257745308438"); // Replace with the desired liquidity amount
 
 /* Let's query the API and form the tx that one should execute */
-reallocateTo(marketId, chainId);
+reallocateTo(marketId, chainId, liquidity);
