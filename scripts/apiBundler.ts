@@ -214,8 +214,12 @@ const extractDataForReallocation = (marketData: any, liquidity: bigint) => {
       const withdrawal: Withdrawal = {
         marketParams: {
           loanToken: item.allocationMarket.loanAsset.address,
-          collateralToken: item.allocationMarket.collateralAsset.address,
-          oracle: item.allocationMarket.oracle.address,
+          collateralToken:
+            item.allocationMarket.collateralAsset?.address ||
+            "0x0000000000000000000000000000000000000000",
+          oracle:
+            item.allocationMarket.oracle?.address ||
+            "0x0000000000000000000000000000000000000000",
           irm: item.allocationMarket.irmAddress,
           lltv: BigInt(item.allocationMarket.lltv),
         },
@@ -380,11 +384,13 @@ Careful, the following addresses are hardcoded and should be manually retrieved 
 2. marketId of the market you expect the borrowers to borrow from, executing the safeTx will bring available liquidity in this market.
 */
 
-const BASE_BUNDLER_V2_ADDRESS = "0x4095F064B8d3c3548A3bebfd0Bbfd04750E30077";
-const chainId = 1;
+// for chainId: 8453: 0x23055618898e202386e6c13955a58D3C68200BFB
+// for chainId: 1: 0x4095F064B8d3c3548A3bebfd0Bbfd04750E30077
+const BASE_BUNDLER_V2_ADDRESS = "0x23055618898e202386e6c13955a58D3C68200BFB";
+const chainId = 8453;
 const marketId =
-  "0xb8fc70e82bc5bb53e773626fcc6a23f7eefa036918d7ef216ecfb1950a94a85e";
-const liquidity = BigInt("1289482554257745308438"); // Replace with the desired liquidity amount
+  "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836";
+const liquidity = BigInt("10000000000000"); // Replace with the desired liquidity amount
 
 /* Let's query the API and form the tx that one should execute */
 reallocateTo(marketId, chainId, liquidity);
