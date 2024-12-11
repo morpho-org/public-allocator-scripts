@@ -1,6 +1,6 @@
-flowchart LR
+flowchart TB
 Start([Start]) --> API[API: Fetch Market Metrics Quick Overview]
-API --> Metrics[Display Current & Reallocatable Liquidity for Market]
+API --> Metrics[Display Current & Reallocatable Liquidity for Markets]
 
     API --> OnChain[RPC: Fetch Current Market State]
 
