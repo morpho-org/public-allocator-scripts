@@ -5,12 +5,21 @@
   "license": "MIT",
   "dependencies": {
     "@morpho-labs/gnosis-tx-builder": "^2.0.0",
+    "@morpho-org/blue-sdk": "^2.0.0-next.31",
+    "@morpho-org/blue-sdk-ethers": "^2.0.0-next.29",
+    "@morpho-org/blue-sdk-viem": "^2.0.0-next.29",
+    "@morpho-org/liquidity-sdk-ethers": "^2.0.0-next.5",
+    "@morpho-org/liquidity-sdk-viem": "^2.0.0-next.6",
     "@morpho-org/morpho-blue-bundlers": "^1.1.2",
+    "@morpho-org/morpho-ts": "^2.0.0-next.16",
+    "@morpho-org/simulation-sdk": "^2.0.0-next.30",
     "@types/node": "^20.14.5",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.1",
     "ethers-multicall-provider": "^6.3.1",
     "ethers-types": "^3.16.0",
-    "evm-maths": "^7.0.0"
+    "evm-maths": "^7.0.0",
+    "mutative": "^1.1.0",
+    "viem": "^2.21.54"
   }
 }
