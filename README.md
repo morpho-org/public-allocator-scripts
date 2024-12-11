@@ -38,15 +38,15 @@ yarn add dotenv
 > If one really needs to use **npm**, use exact versions in package.json:
 > ```json
 > {
->   "@morpho-org/blue-api-sdk": "2.0.0-next.14",
->   "@morpho-org/blue-sdk": "2.0.0-next.31",
->   "@morpho-org/blue-sdk-ethers": "2.0.0-next.29",
->   "@morpho-org/blue-sdk-viem": "2.0.0-next.30",
->   "@morpho-org/liquidity-sdk-ethers": "2.0.0-next.5",
->   "@morpho-org/liquidity-sdk-viem": "2.0.0-next.6",
->   "@morpho-org/morpho-blue-bundlers": "^1.1.2",
->   "@morpho-org/morpho-ts": "2.0.0-next.16",
->   "@morpho-org/simulation-sdk": "2.0.0-next.30"
+>    "@morpho-org/blue-api-sdk": "2.0.0-next.14",
+>    "@morpho-org/blue-sdk": "2.0.0-next.32",
+>    "@morpho-org/blue-sdk-ethers": "2.0.0-next.30",
+>    "@morpho-org/blue-sdk-viem": "2.0.0-next.30",
+>    "@morpho-org/liquidity-sdk-ethers": "2.0.0-next.6",
+>    "@morpho-org/liquidity-sdk-viem": "2.0.0-next.6",
+>    "@morpho-org/morpho-blue-bundlers": "1.1.2",
+>    "@morpho-org/morpho-ts": "2.0.0-next.16",
+>    "@morpho-org/simulation-sdk": "2.0.0-next.30",
 > }
 > ```
 
