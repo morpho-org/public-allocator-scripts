@@ -1,32 +1,18 @@
 # Morpho Public Allocator - Bundler Implementation
 
-This repository provides tools to fetch data from Morpho Blue markets and prepare reallocation transactions using the public allocator via the Bundler contract. The implementation supports both Ethers.js and Viem for maximum flexibility.
+This repository provides tools to fetch data from Morpho Blue markets and prepare reallocation transactions using the public allocator via the Bundler contract. The implementation supports Viem only for now.
 
 ![Reallocation Flow](./scripts/image.png)
 
 ## ⚠️ SDK Versions Notice
 
-Current SDK versions are in pre-release. Use the following commands to install the latest next versions:
-
-### For Ethers.js Implementation
-
-```bash
-yarn add @morpho-org/blue-sdk@next
-yarn add @morpho-org/blue-sdk-ethers@next
-yarn add @morpho-org/liquidity-sdk-ethers@next
-yarn add @morpho-org/morpho-blue-bundlers@latest
-yarn add @morpho-org/morpho-ts@next
-yarn add @morpho-org/simulation-sdk@next
-yarn add ethers@^6.13.1
-yarn add dotenv
-```
+Current SDK versions are in pre-release. Use the following commands to install the latest next versions. Note the liquidity-sdk-viem is on version 1.1.0.
 
 ### For Viem Implementation
 
 ```bash
 yarn add @morpho-org/blue-sdk@next
 yarn add @morpho-org/blue-sdk-viem@next
-yarn add @morpho-org/liquidity-sdk-viem@next
 yarn add @morpho-org/morpho-blue-bundlers@latest
 yarn add @morpho-org/morpho-ts@next
 yarn add @morpho-org/simulation-sdk@next
@@ -34,21 +20,14 @@ yarn add viem@^2.21.54
 yarn add dotenv
 ```
 
-> **Note:** npm has issues parsing package names containing '@' symbols. We recommend using **yarn** or **pnpm** instead.  
+and also:
+
+```bash
+yarn add @morpho-org/liquidity-sdk-viem@1.1.0
+```
+
+> **Note:** npm has potential issues parsing package names containing '@' symbols. We recommend using **yarn** or **pnpm** instead.  
 > If one really needs to use **npm**, use exact versions in package.json:
-> ```json
-> {
->    "@morpho-org/blue-api-sdk": "2.0.0-next.14",
->    "@morpho-org/blue-sdk": "2.0.0-next.32",
->    "@morpho-org/blue-sdk-ethers": "2.0.0-next.30",
->    "@morpho-org/blue-sdk-viem": "2.0.0-next.30",
->    "@morpho-org/liquidity-sdk-ethers": "2.0.0-next.6",
->    "@morpho-org/liquidity-sdk-viem": "2.0.0-next.6",
->    "@morpho-org/morpho-blue-bundlers": "1.1.2",
->    "@morpho-org/morpho-ts": "2.0.0-next.16",
->    "@morpho-org/simulation-sdk": "2.0.0-next.30",
-> }
-> ```
 
 ## Environment Setup
 
@@ -76,41 +55,45 @@ The script implements a two-step data fetching process for optimal performance:
 
 ## Stack Choice
 
-Both Ethers.js and Viem implementations provide identical functionality. Choose based on your existing stack:
-
-- Use Ethers.js version if you're already using Ethers.js in your project
-- Use Viem version if you're using Viem or starting a new project
+Currently only viem is supported, given a version dependency.
 
 ## Usage
 
 1. Update the market parameters in your script:
 
 ```typescript
-const marketId = "0x..." as MarketId; // Your target market
-const chainId = 1; // or 8453 for Base
-const REQUESTED_LIQUIDITY = BigInt("1000000000000000000"); // Amount in wei
+const chainId = 8453 as ChainId;
+const marketId =
+  "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836" as MarketId;
+
+// Example amounts: 20 USDC and 20M USDC
+const examples = [
+  { amount: 20, label: "20 USDC" },
+  { amount: 20_000_000, label: "20M USDC" },
+];
 ```
 
 2. Run the script:
 
 ```bash
-ts-node scripts/ethers/sdkBundler.ts
-```
-
-or
-
-```bash
-ts-node scripts/viem/sdkBundler.ts
+npx tsx scripts/sdks/viem/sdkBundler.ts
 ```
 
 The script will:
 
-1. Fetch initial market metrics from the API
-2. Check current market liquidity
-3. Determine if reallocation is needed
-4. Optional: Run market state simulations
-5. Process withdrawals if needed
-6. Generate and save transaction data to `rawTransaction.json`
+1. Fetch initial market metrics from the GraphQL API
+2. Get current market data and liquidity state
+3. Calculate utilization and required reallocation
+4. Process withdrawals if needed
+5. Run market simulations for impact analysis
+6. Generate transaction data if reallocation is required
+7. Provide detailed results including:
+   - Current market liquidity
+   - API metrics
+   - Simulation results
+   - Reallocation details
+   - Transaction data (if applicable)
+   - Status messages
 
 ## Reallocation Flow
 

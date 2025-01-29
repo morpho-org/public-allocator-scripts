@@ -3,23 +3,30 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "scripts": {
+    "start": "ts-node scripts/sdks/viem/sdkBundler.ts"
+  },
   "dependencies": {
     "@morpho-labs/gnosis-tx-builder": "^2.0.0",
     "@morpho-org/blue-sdk": "^2.0.0-next.31",
-    "@morpho-org/blue-sdk-ethers": "^2.0.0-next.29",
     "@morpho-org/blue-sdk-viem": "^2.0.0-next.29",
-    "@morpho-org/liquidity-sdk-ethers": "^2.0.0-next.5",
-    "@morpho-org/liquidity-sdk-viem": "^2.0.0-next.6",
+    "@morpho-org/liquidity-sdk-viem": "1.1.0",
     "@morpho-org/morpho-blue-bundlers": "^1.1.2",
     "@morpho-org/morpho-ts": "^2.0.0-next.16",
     "@morpho-org/simulation-sdk": "^2.0.0-next.30",
     "@types/node": "^20.14.5",
+    "dataloader": "^2.2.3",
     "dotenv": "^16.4.5",
-    "ethers": "^6.13.1",
-    "ethers-multicall-provider": "^6.3.1",
-    "ethers-types": "^3.16.0",
     "evm-maths": "^7.0.0",
+    "fs": "^0.0.1-security",
+    "graphql": "^16.10.0",
+    "graphql-request": "^7.1.2",
+    "graphql-tag": "^2.12.6",
     "mutative": "^1.1.0",
     "viem": "^2.21.54"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
   }
 }

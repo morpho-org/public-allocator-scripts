@@ -1,37 +1,38 @@
 flowchart TB
-Start([Start]) --> API[API: Fetch Market Metrics Quick Overview]
-API --> Metrics[Display Current & Reallocatable Liquidity for Markets]
+Start([Start]) --> Initialize[Initialize Client & Loader]
+Initialize --> Parallel{Parallel Fetch}
 
-    API --> OnChain[RPC: Fetch Current Market State]
+    Parallel --> API[API: Fetch Market Metrics]
+    Parallel --> Market[Fetch Market Data]
 
-    OnChain --> Check{Enough Liquidity?}
+    API & Market --> Calculate[Calculate Required Assets]
 
-    %% Early success path
-    Check -->|Yes| Success[Display Excess Liquidity]
+    Calculate --> CheckUtil{Utilization > Target?}
+
+    %% No reallocation needed path
+    CheckUtil -->|No| Success[No Reallocation Needed]
     Success --> End([End])
 
-    %% RPC Path for reallocation
-    Check -->|No| RPC[RPC: Fetch Reallocation Data]
-    RPC --> Reallocatable{Has Reallocatable?}
+    %% Reallocation path
+    CheckUtil -->|Yes| FetchRPC[RPC: Fetch Reallocation Data]
+    FetchRPC --> HasLiquidity{Has Reallocatable Liquidity?}
 
     %% No liquidity path
-    Reallocatable -->|No| Shortfall[Show Liquidity Shortfall]
-    Shortfall --> End
+    HasLiquidity -->|No| NoLiquidity[No Reallocatable Liquidity]
+    NoLiquidity --> End
 
-    %% Split into simulation vs direct path
-    Reallocatable -->|Yes| SimCheck{Simulation Mode?}
+    %% Process reallocation path
+    HasLiquidity -->|Yes| Process[Process Reallocations]
+    Process --> Simulate[Simulate Market States]
 
-    %% Simulation path
-    SimCheck -->|Yes| Sim[Simulate Market States]
-    Sim --> SimDisplay[Display Simulation Results]
-    SimDisplay --> Process
+    Simulate --> CheckMatch{Liquidity Fully Matched?}
 
-    %% Direct path without simulation
-    SimCheck -->|No| Process[Process Withdrawals]
+    CheckMatch -->|No| Shortfall[Show Liquidity Shortfall]
+    Shortfall --> GenTx[Generate Transaction]
 
-    %% Common ending for both paths
-    Process --> Tx[Create & Save Transaction]
-    Tx --> Summary[Final Summary]
+    CheckMatch -->|Yes| GenTx
+
+    GenTx --> Summary[Final Summary]
     Summary --> End
 
     classDef default fill:#f9f9f9,stroke:#333,color:black
@@ -39,10 +40,11 @@ API --> Metrics[Display Current & Reallocatable Liquidity for Markets]
     classDef process fill:#2ecc71,stroke:#333,color:white
     classDef api fill:#3498db,stroke:#333,color:white
     classDef rpc fill:#9b59b6,stroke:#333,color:white
-    classDef ending fill:#4a90e2,stroke:#333,color:white
+    classDef check fill:#f1c40f,stroke:#333,color:black
     classDef simulation fill:#e67e22,stroke:#333,color:white
 
     class Start,End input
-    class API,Metrics api
-    class OnChain,RPC,Process,Tx rpc
-    class Sim,SimDisplay simulation
+    class API,Market api
+    class FetchRPC,Process rpc
+    class CheckUtil,HasLiquidity,CheckMatch check
+    class Simulate simulation
