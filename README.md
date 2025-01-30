@@ -4,6 +4,11 @@ This repository provides tools to fetch data from Morpho Blue markets and prepar
 
 ![Reallocation Flow](./scripts/image.png)
 
+## ⚠️ API - WIP Notice
+
+An API (combined with RPC calls) version has been created to fetch data from the API and prepare reallocation transactions. It is automitically simulating the reallocation transaction and filtering with any potential error during atomic reallocation process.
+It is currently in WIP.
+
 ## ⚠️ SDK Versions Notice
 
 Current SDK versions are in pre-release. Use the following commands to install the latest next versions. Note the liquidity-sdk-viem is on version 1.1.0.
